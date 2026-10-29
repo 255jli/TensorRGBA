@@ -97,6 +97,12 @@ First 16 pixels (64 bytes) contain:
 - total parameter count
 - quantization parameters (int8 only)
 
+## Color management note
+
+Browsers (especially on Windows) may apply display color profiles when decoding images through a normal `<img>` + Canvas path. This slightly changes pixel values and destroys the binary weights.
+
+The loader therefore uses `createImageBitmap` with `colorSpaceConversion: "none"` (and falls back to `ImageDecoder` when available) to read the exact byte values written by the exporter.
+
 ## Notes
 
 - Only PNG is supported. JPEG destroys the weights.
