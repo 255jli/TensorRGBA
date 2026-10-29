@@ -3,7 +3,7 @@
 Neural network weights stored inside a PNG image.
 
 The trained generator lives completely inside one lossless PNG file.  
-You load the image in the browser, extract the weights with Canvas API, and run inference with pure JavaScript. No backend. No heavy libraries.
+You load the image in the browser, extract the weights with a pure JavaScript PNG decoder, and run inference with pure JavaScript. No backend. No heavy libraries.
 
 ## What it does
 
@@ -22,6 +22,7 @@ train/
   export_float32.py  - export full precision PNG
   export_int8.py     - export quantized PNG
 web/
+  png_decoder.js     - pure JS PNG decoder (no Canvas)
   load_model.js      - PNG → weights
   inference.js       - pure JS forward pass
   index.html         - minimal demo
@@ -97,11 +98,19 @@ First 16 pixels (64 bytes) contain:
 - total parameter count
 - quantization parameters (int8 only)
 
-## Color management note
+## Cross-platform loading
 
-Browsers (especially on Windows) may apply display color profiles when decoding images through a normal `<img>` + Canvas path. This slightly changes pixel values and destroys the binary weights.
+Browsers (especially on Windows) apply display color profiles and gamma correction when decoding images through Canvas or ImageBitmap. This changes individual bytes and destroys the packed weights.
 
-The loader therefore uses `createImageBitmap` with `colorSpaceConversion: "none"` (and falls back to `ImageDecoder` when available) to read the exact byte values written by the exporter.
+The loader therefore never touches Canvas or ImageBitmap for model data.  
+It fetches the file as an ArrayBuffer and decodes the PNG with a small pure-JavaScript decoder (`png_decoder.js`) that:
+
+- Parses PNG chunks directly
+- Inflates IDAT with `DecompressionStream`
+- Reconstructs filtered scanlines
+- Returns the exact raw RGBA bytes written by the exporter
+
+This works reliably on Windows, macOS and Linux.
 
 ## Notes
 
