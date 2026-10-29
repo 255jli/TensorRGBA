@@ -38,50 +38,9 @@ function extractWeights(buffer, header) {
   throw new Error("Unknown mode");
 }
 
-async function decodeWithCreateImageBitmap(blob) {
-  const bitmap = await createImageBitmap(blob, {
-    colorSpaceConversion: "none",
-    premultiplyAlpha: "none",
-  });
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  return imageData.data.buffer;
-}
-
-async function decodeWithImageDecoder(arrayBuffer) {
-  if (typeof ImageDecoder === "undefined") {
-    throw new Error("ImageDecoder not supported");
-  }
-  const decoder = new ImageDecoder({
-    data: arrayBuffer,
-    type: "image/png",
-    colorSpaceConversion: "none",
-    premultiplyAlpha: "none",
-  });
-  const result = await decoder.decode();
-  const frame = result.image;
-  const width = frame.displayWidth;
-  const height = frame.displayHeight;
-  const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(frame, 0, 0);
-  frame.close();
-  decoder.close();
-  const imageData = ctx.getImageData(0, 0, width, height);
-  return imageData.data.buffer;
-}
-
 async function loadModelFromPNG(source) {
-  let blob;
   let arrayBuffer;
-
   if (source instanceof Blob) {
-    blob = source;
     arrayBuffer = await source.arrayBuffer();
   } else if (typeof source === "string") {
     const response = await fetch(source);
@@ -89,22 +48,12 @@ async function loadModelFromPNG(source) {
       throw new Error("Failed to fetch model");
     }
     arrayBuffer = await response.arrayBuffer();
-    blob = new Blob([arrayBuffer], { type: "image/png" });
   } else {
     throw new Error("Unsupported source type");
   }
 
-  let buffer;
-  try {
-    buffer = await decodeWithCreateImageBitmap(blob);
-  } catch (e) {
-    try {
-      buffer = await decodeWithImageDecoder(arrayBuffer);
-    } catch (e2) {
-      throw new Error("Failed to decode PNG without color conversion");
-    }
-  }
-
+  const { data } = await decodePng(arrayBuffer);
+  const buffer = data.buffer;
   const dataView = new DataView(buffer);
   const header = parseHeader(dataView);
   const weights = extractWeights(buffer, header);
