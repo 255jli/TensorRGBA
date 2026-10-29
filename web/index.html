@@ -78,8 +78,7 @@
       statusEl.textContent = "Loading model...";
       statusEl.classList.remove("error");
       try {
-        const url = URL.createObjectURL(file);
-        const { header, weights } = await loadModelFromPNG(url);
+        const { header, weights } = await loadModelFromPNG(file);
         noiseDim = header.noiseDim;
         generator = createGenerator(weights, noiseDim);
         generateBtn.disabled = false;
