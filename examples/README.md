@@ -1,15 +1,13 @@
 # Examples
 
-This folder will contain additional models packed with the TensorRGBA format.
+Additional models using the TensorRGBA format.
 
-Current planned examples:
+| Example | Description | Status |
+|---------|-------------|--------|
+| `animals/` | Black-and-white cat / dog generator (CIFAR-10) | Ready |
+| `digits/` | Handwritten digit generator | Main example (see `/train` and `/web`) |
 
-- `digits/` — handwritten digit generator (the main example, currently lives in `/train` and `/web`)
-- `animals/` — black-and-white cat / dog generator (future)
-- `cleanup/` — simple watermark or background removal (future)
-- `tiny-lm/` — extremely small character-level language model (experimental)
-
-Each example should be self-contained:
+Each example is self-contained:
 
 ```
 examples/<name>/
@@ -18,4 +16,4 @@ examples/<name>/
   README.md
 ```
 
-The core format (header + float32 / int8 packing + pure JS decoder) stays the same for every example.
+The core format (header + float32/int8 packing + pure JS PNG decoder) is shared.
