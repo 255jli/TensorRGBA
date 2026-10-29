@@ -41,7 +41,7 @@ def train(args):
     model = DigitGenerator(noise_dim=args.noise_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.BCELoss()
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.5)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -85,12 +85,13 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.0002)
+    parser.add_argument("--step-size", type=int, default=5)
     parser.add_argument("--noise-dim", type=int, default=128)
     parser.add_argument("--data-dir", type=str, default="./data")
     parser.add_argument("--output-dir", type=str, default="./checkpoints")
-    parser.add_argument("--save-every", type=int, default=10)
+    parser.add_argument("--save-every", type=int, default=5)
     args = parser.parse_args()
     train(args)
