@@ -75,7 +75,8 @@ examples/
       index.html
 ```
 
-Copy the digit example and replace the architecture + data loading.
+Copy the MNIST example in `examples/mnist/` and replace the architecture and
+data loading.
 
 ## 9. What works well today
 

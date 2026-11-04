@@ -5,17 +5,13 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from model import AnimalGenerator
 
 
-CAT_CLASS = 3
-DOG_CLASS = 5
-
-
-def one_hot(labels, num_classes=2):
+def one_hot(labels, num_classes=10):
     return torch.nn.functional.one_hot(labels, num_classes).float()
 
 
@@ -35,42 +31,26 @@ def train(args):
         transform=transform,
     )
 
-    indices = []
-    mapped_labels = []
-    for idx, (_, label) in enumerate(full_dataset):
-        if label == CAT_CLASS:
-            indices.append(idx)
-            mapped_labels.append(0)
-        elif label == DOG_CLASS:
-            indices.append(idx)
-            mapped_labels.append(1)
-
-    class AnimalSubset(torch.utils.data.Dataset):
-        def __init__(self, base, indices, labels):
-            self.base = base
-            self.indices = indices
-            self.labels = labels
-
-        def __len__(self):
-            return len(self.indices)
-
-        def __getitem__(self, i):
-            img, _ = self.base[self.indices[i]]
-            return img, self.labels[i]
-
-    dataset = AnimalSubset(full_dataset, indices, mapped_labels)
     loader = DataLoader(
-        dataset,
+        full_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=2,
         pin_memory=True if device.type == "cuda" else False,
     )
 
-    model = AnimalGenerator(noise_dim=args.noise_dim).to(device)
+    num_classes = 10
+    model = AnimalGenerator(
+        noise_dim=args.noise_dim,
+        num_classes=num_classes,
+    ).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.BCELoss()
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=args.step_size,
+        gamma=0.5,
+    )
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -79,7 +59,7 @@ def train(args):
         total_loss = 0.0
         for images, labels in loader:
             images = images.view(images.size(0), -1).to(device)
-            labels_oh = one_hot(torch.tensor(labels)).to(device)
+            labels_oh = one_hot(labels, num_classes).to(device)
             noise = torch.randn(images.size(0), args.noise_dim, device=device)
 
             optimizer.zero_grad()
@@ -98,6 +78,7 @@ def train(args):
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "noise_dim": args.noise_dim,
+                "num_classes": num_classes,
                 "epoch": epoch,
                 "loss": avg_loss,
             }, ckpt_path)
@@ -107,6 +88,7 @@ def train(args):
     torch.save({
         "model_state_dict": model.state_dict(),
         "noise_dim": args.noise_dim,
+        "num_classes": num_classes,
         "epoch": args.epochs,
     }, final_path)
     print(f"Training complete. Final model: {final_path}")

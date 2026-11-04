@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TensorRGBA - Cat / Dog Generator</title>
+  <title>TensorRGBA - CIFAR-10 Generator</title>
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -40,13 +40,21 @@
 </head>
 <body>
   <h1>TensorRGBA Animals</h1>
-  <p>Black-and-white cat / dog generator stored inside a PNG</p>
+  <p>Black-and-white CIFAR-10 generator stored inside a PNG</p>
 
   <div class="controls">
     <input type="file" id="modelFile" accept="image/png">
     <select id="animalSelect">
-      <option value="0">Cat</option>
-      <option value="1">Dog</option>
+      <option value="0">Airplane</option>
+      <option value="1">Automobile</option>
+      <option value="2">Bird</option>
+      <option value="3">Cat</option>
+      <option value="4">Deer</option>
+      <option value="5">Dog</option>
+      <option value="6">Frog</option>
+      <option value="7">Horse</option>
+      <option value="8">Ship</option>
+      <option value="9">Truck</option>
     </select>
     <button id="generateBtn" disabled>Generate</button>
   </div>
@@ -60,11 +68,16 @@
   <script>
     let generator = null;
     let noiseDim = 128;
-    let numClasses = 2;
+    let numClasses = 10;
 
     const statusEl = document.getElementById("status");
     const generateBtn = document.getElementById("generateBtn");
     const canvas = document.getElementById("output");
+    const animalSelect = document.getElementById("animalSelect");
+    const classNames = [
+      "Airplane", "Automobile", "Bird", "Cat", "Deer",
+      "Dog", "Frog", "Horse", "Ship", "Truck",
+    ];
 
     document.getElementById("modelFile").addEventListener("change", async (e) => {
       const file = e.target.files[0];
@@ -74,7 +87,18 @@
       try {
         const { header, weights } = await loadModelFromPNG(file);
         noiseDim = header.noiseDim;
-        numClasses = header.numClasses || 2;
+        numClasses = header.numClasses || 10;
+        animalSelect.replaceChildren();
+        for (let index = 0; index < numClasses; index++) {
+          let name = classNames[index] || `Class ${index}`;
+          if (numClasses === 2) {
+            name = index === 0 ? "Cat" : "Dog";
+          }
+          const option = document.createElement("option");
+          option.value = index;
+          option.textContent = name;
+          animalSelect.appendChild(option);
+        }
         generator = createGenerator(weights, noiseDim, numClasses);
         generateBtn.disabled = false;
         const modeName = header.mode === 0 ? "float32" : "int8";
@@ -89,7 +113,7 @@
 
     generateBtn.addEventListener("click", () => {
       if (!generator) return;
-      const label = parseInt(document.getElementById("animalSelect").value, 10);
+      const label = parseInt(animalSelect.value, 10);
       const noise = new Float32Array(noiseDim);
       for (let i = 0; i < noiseDim; i++) {
         noise[i] = Math.random() * 2 - 1;

@@ -39,14 +39,16 @@ def quantize(weights):
         quantized = np.zeros_like(weights, dtype=np.uint8)
     else:
         scale = (max_val - min_val) / 255.0
-        quantized = np.round((weights - min_val) / scale).clip(0, 255).astype(np.uint8)
+        scaled_weights = (weights - min_val) / scale
+        quantized = np.round(scaled_weights).clip(0, 255).astype(np.uint8)
     return quantized, min_val, scale
 
 
 def export_int8(checkpoint_path, output_path):
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     noise_dim = ckpt.get("noise_dim", 128)
-    model = AnimalGenerator(noise_dim=noise_dim)
+    num_classes = ckpt.get("num_classes", 2)
+    model = AnimalGenerator(noise_dim=noise_dim, num_classes=num_classes)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
 
@@ -58,7 +60,7 @@ def export_int8(checkpoint_path, output_path):
     header_bytes = build_header(
         mode=1,
         noise_dim=noise_dim,
-        num_classes=2,
+        num_classes=num_classes,
         total_params=total_params,
         min_val=min_val,
         scale=scale,

@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class AnimalGenerator(nn.Module):
-    def __init__(self, noise_dim=128, num_classes=2):
+    def __init__(self, noise_dim=128, num_classes=10):
         super().__init__()
         self.noise_dim = noise_dim
         self.num_classes = num_classes

@@ -16,16 +16,15 @@ You load the image in the browser with a pure JavaScript PNG decoder and run inf
 
 | Example | Description | Location |
 |---------|-------------|----------|
-| Digits | Handwritten digit generator (MNIST) | `/train` + `/web` |
-| Animals | Black-and-white cat / dog generator (CIFAR-10) | `/examples/animals` |
+| Digits | Handwritten digit generator (MNIST) | `examples/mnist/` |
+| CIFAR-10 | Grayscale generator for all 10 CIFAR-10 classes | `examples/cifar10/` |
 
 ## Project structure
 
 ```
-train/                 - digit generator (reference)
-web/                   - digit demo
 examples/
-  animals/             - cat/dog generator
+  mnist/                - handwritten digit generator and sample model PNGs
+  cifar10/              - CIFAR-10 generator
 docs/
   integration.md       - how to pack your own model
   architecture.md
@@ -39,22 +38,25 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-cd train
+cd examples/mnist/train
 python train.py
 python export_float32.py --checkpoint checkpoints/generator_final.pt --output ../model_float32.png
+python export_int8.py --checkpoint checkpoints/generator_final.pt --output ../model_int8.png
 ```
 
-Open `web/index.html` and load the PNG.
+Open `examples/mnist/web/index.html` and load one of the model PNGs from
+`examples/mnist/`.
 
-## Animals example
+## CIFAR-10 example
 
 ```bash
-cd examples/animals/train
+cd examples/cifar10/train
 python train.py
 python export_float32.py --checkpoint checkpoints/animal_final.pt --output ../animal_float32.png
+python export_int8.py --checkpoint checkpoints/animal_final.pt --output ../animal_int8.png
 ```
 
-Open `examples/animals/web/index.html`.
+Open `examples/cifar10/web/index.html`.
 
 ## Cross-platform loading
 

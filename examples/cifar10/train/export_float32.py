@@ -32,14 +32,20 @@ def build_header(mode, noise_dim, num_classes, total_params):
 def export_float32(checkpoint_path, output_path):
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     noise_dim = ckpt.get("noise_dim", 128)
-    model = AnimalGenerator(noise_dim=noise_dim)
+    num_classes = ckpt.get("num_classes", 2)
+    model = AnimalGenerator(noise_dim=noise_dim, num_classes=num_classes)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
 
     flat = collect_weights(model)
     total_params = len(flat)
 
-    header_bytes = build_header(mode=0, noise_dim=noise_dim, num_classes=2, total_params=total_params)
+    header_bytes = build_header(
+        mode=0,
+        noise_dim=noise_dim,
+        num_classes=num_classes,
+        total_params=total_params,
+    )
 
     weight_bytes = flat.tobytes()
     all_bytes = header_bytes + weight_bytes
