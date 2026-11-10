@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from model import AnimalGenerator
+from model import CifarGenerator
 
 
 MAGIC = b"TRGBA001"
@@ -14,8 +14,8 @@ HEADER_PIXELS = 16
 
 def collect_weights(model):
     weights = []
-    for param in model.parameters():
-        weights.append(param.detach().cpu().contiguous().view(-1))
+    for tensor in model.export_tensors():
+        weights.append(tensor.detach().cpu().contiguous().view(-1))
     return torch.cat(weights).numpy().astype(np.float32)
 
 
@@ -26,15 +26,18 @@ def build_header(mode, noise_dim, num_classes, total_params):
     struct.pack_into("<H", header, 9, noise_dim)
     header[11] = num_classes
     struct.pack_into("<I", header, 12, total_params)
+    header[24] = 1
     return header
 
 
 def export_float32(checkpoint_path, output_path):
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    if "generator_state_dict" not in ckpt:
+        raise ValueError("Checkpoint is not from the conditional GAN trainer")
     noise_dim = ckpt.get("noise_dim", 128)
     num_classes = ckpt.get("num_classes", 2)
-    model = AnimalGenerator(noise_dim=noise_dim, num_classes=num_classes)
-    model.load_state_dict(ckpt["model_state_dict"])
+    model = CifarGenerator(noise_dim=noise_dim, num_classes=num_classes)
+    model.load_state_dict(ckpt["generator_state_dict"])
     model.eval()
 
     flat = collect_weights(model)
@@ -61,12 +64,16 @@ def export_float32(checkpoint_path, output_path):
     img.save(output_path, "PNG")
     print(f"Float32 model exported: {output_path}")
     print(f"Image size: {side}x{side}")
-    print(f"Total parameters: {total_params}")
+    print(f"Total model values: {total_params}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--output", type=str, default="animal_float32.png")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="../cifar10_float32.png",
+    )
     args = parser.parse_args()
     export_float32(args.checkpoint, args.output)

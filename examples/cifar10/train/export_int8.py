@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from model import AnimalGenerator
+from model import CifarGenerator
 
 
 MAGIC = b"TRGBA001"
@@ -14,8 +14,8 @@ HEADER_PIXELS = 16
 
 def collect_weights(model):
     weights = []
-    for param in model.parameters():
-        weights.append(param.detach().cpu().contiguous().view(-1))
+    for tensor in model.export_tensors():
+        weights.append(tensor.detach().cpu().contiguous().view(-1))
     return torch.cat(weights).numpy().astype(np.float32)
 
 
@@ -28,6 +28,7 @@ def build_header(mode, noise_dim, num_classes, total_params, min_val, scale):
     struct.pack_into("<I", header, 12, total_params)
     struct.pack_into("<f", header, 16, min_val)
     struct.pack_into("<f", header, 20, scale)
+    header[24] = 1
     return header
 
 
@@ -46,10 +47,12 @@ def quantize(weights):
 
 def export_int8(checkpoint_path, output_path):
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    if "generator_state_dict" not in ckpt:
+        raise ValueError("Checkpoint is not from the conditional GAN trainer")
     noise_dim = ckpt.get("noise_dim", 128)
     num_classes = ckpt.get("num_classes", 2)
-    model = AnimalGenerator(noise_dim=noise_dim, num_classes=num_classes)
-    model.load_state_dict(ckpt["model_state_dict"])
+    model = CifarGenerator(noise_dim=noise_dim, num_classes=num_classes)
+    model.load_state_dict(ckpt["generator_state_dict"])
     model.eval()
 
     flat = collect_weights(model)
@@ -80,13 +83,17 @@ def export_int8(checkpoint_path, output_path):
     img.save(output_path, "PNG")
     print(f"Int8 model exported: {output_path}")
     print(f"Image size: {side}x{side}")
-    print(f"Total parameters: {total_params}")
+    print(f"Total model values: {total_params}")
     print(f"Quantization min={min_val:.6f} scale={scale:.6f}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--output", type=str, default="animal_int8.png")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="../cifar10_int8.png",
+    )
     args = parser.parse_args()
     export_int8(args.checkpoint, args.output)
