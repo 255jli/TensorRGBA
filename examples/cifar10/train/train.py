@@ -5,93 +5,157 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
-from model import AnimalGenerator
+from model import CifarDiscriminator, CifarGenerator, initialize_weights
 
 
-def one_hot(labels, num_classes=10):
-    return torch.nn.functional.one_hot(labels, num_classes).float()
+AIRPLANE_CLASS = 0
+SHIP_CLASS = 8
+NUM_CLASSES = 2
+CLASS_NAMES = ["Airplane", "Ship"]
+
+
+def save_checkpoint(path, generator, args, epoch, generator_loss):
+    torch.save({
+        "generator_state_dict": generator.state_dict(),
+        "noise_dim": args.noise_dim,
+        "num_classes": NUM_CLASSES,
+        "class_names": CLASS_NAMES,
+        "epoch": epoch,
+        "generator_loss": generator_loss,
+    }, path)
 
 
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cpu":
+        torch.set_num_threads(args.cpu_threads)
     print(f"Using device: {device}")
 
     transform = transforms.Compose([
-        transforms.Grayscale(num_output_channels=1),
         transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
-
     full_dataset = datasets.CIFAR10(
         root=args.data_dir,
         train=True,
         download=True,
         transform=transform,
     )
-
+    indices = [
+        index
+        for index, label in enumerate(full_dataset.targets)
+        if label in (AIRPLANE_CLASS, SHIP_CLASS)
+    ]
+    dataset = Subset(full_dataset, indices)
     loader = DataLoader(
-        full_dataset,
+        dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=2,
-        pin_memory=True if device.type == "cuda" else False,
+        num_workers=0,
+        pin_memory=device.type == "cuda",
     )
 
-    num_classes = 10
-    model = AnimalGenerator(
-        noise_dim=args.noise_dim,
-        num_classes=num_classes,
-    ).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    criterion = nn.BCELoss()
-    scheduler = optim.lr_scheduler.StepLR(
-        optimizer,
-        step_size=args.step_size,
-        gamma=0.5,
-    )
+    generator = CifarGenerator(args.noise_dim, NUM_CLASSES).to(device)
+    discriminator = CifarDiscriminator(NUM_CLASSES).to(device)
+    initialize_weights(generator)
+    initialize_weights(discriminator)
 
+    generator_optimizer = optim.Adam(
+        generator.parameters(), lr=args.lr, betas=(0.5, 0.999)
+    )
+    discriminator_optimizer = optim.Adam(
+        discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999)
+    )
+    criterion = nn.BCEWithLogitsLoss()
     os.makedirs(args.output_dir, exist_ok=True)
 
     for epoch in range(1, args.epochs + 1):
-        model.train()
-        total_loss = 0.0
-        for images, labels in loader:
-            images = images.view(images.size(0), -1).to(device)
-            labels_oh = one_hot(labels, num_classes).to(device)
-            noise = torch.randn(images.size(0), args.noise_dim, device=device)
+        generator.train()
+        discriminator.train()
+        total_generator_loss = 0.0
+        total_discriminator_loss = 0.0
 
-            optimizer.zero_grad()
-            outputs = model(noise, labels_oh)
-            loss = criterion(outputs, images)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
+        for images, original_labels in loader:
+            images = images.to(device)
+            labels = (original_labels == SHIP_CLASS).long().to(device)
+            batch_size = images.size(0)
+            real_targets = torch.full((batch_size, 1), 0.9, device=device)
+            fake_targets = torch.zeros((batch_size, 1), device=device)
 
-        scheduler.step()
-        avg_loss = total_loss / len(loader)
-        print(f"Epoch {epoch}/{args.epochs}  Loss: {avg_loss:.6f}")
+            noise = torch.rand(
+                batch_size,
+                args.noise_dim,
+                device=device,
+            ) * 2 - 1
+            fake_images = generator(noise, labels)
+            real_scores = discriminator(images, labels)
+            fake_scores = discriminator(fake_images.detach(), labels)
+            discriminator_loss = (
+                criterion(real_scores, real_targets)
+                + criterion(fake_scores, fake_targets)
+            ) / 2
+
+            discriminator_optimizer.zero_grad()
+            discriminator_loss.backward()
+            discriminator_optimizer.step()
+
+            for parameter in discriminator.parameters():
+                parameter.requires_grad_(False)
+
+            noise = torch.rand(
+                batch_size,
+                args.noise_dim,
+                device=device,
+            ) * 2 - 1
+            fake_images = generator(noise, labels)
+            fake_scores = discriminator(fake_images, labels)
+            generator_loss = criterion(
+                fake_scores,
+                torch.ones_like(fake_scores),
+            )
+
+            generator_optimizer.zero_grad()
+            generator_loss.backward()
+            generator_optimizer.step()
+
+            for parameter in discriminator.parameters():
+                parameter.requires_grad_(True)
+
+            total_generator_loss += generator_loss.item()
+            total_discriminator_loss += discriminator_loss.item()
+
+        average_generator_loss = total_generator_loss / len(loader)
+        average_discriminator_loss = total_discriminator_loss / len(loader)
+        print(
+            f"Epoch {epoch}/{args.epochs}  "
+            f"D: {average_discriminator_loss:.4f}  "
+            f"G: {average_generator_loss:.4f}"
+        )
 
         if epoch % args.save_every == 0 or epoch == args.epochs:
-            ckpt_path = Path(args.output_dir) / f"animal_epoch_{epoch}.pt"
-            torch.save({
-                "model_state_dict": model.state_dict(),
-                "noise_dim": args.noise_dim,
-                "num_classes": num_classes,
-                "epoch": epoch,
-                "loss": avg_loss,
-            }, ckpt_path)
-            print(f"Saved checkpoint: {ckpt_path}")
+            checkpoint_name = f"airplane_ship_gan_epoch_{epoch}.pt"
+            checkpoint_path = Path(args.output_dir) / checkpoint_name
+            save_checkpoint(
+                checkpoint_path,
+                generator,
+                args,
+                epoch,
+                average_generator_loss,
+            )
+            print(f"Saved checkpoint: {checkpoint_path}")
 
-    final_path = Path(args.output_dir) / "animal_final.pt"
-    torch.save({
-        "model_state_dict": model.state_dict(),
-        "noise_dim": args.noise_dim,
-        "num_classes": num_classes,
-        "epoch": args.epochs,
-    }, final_path)
-    print(f"Training complete. Final model: {final_path}")
+    final_path = Path(args.output_dir) / "airplane_ship_gan_final.pt"
+    save_checkpoint(
+        final_path,
+        generator,
+        args,
+        args.epochs,
+        average_generator_loss,
+    )
+    print(f"Training complete. Final generator: {final_path}")
 
 
 if __name__ == "__main__":
@@ -99,10 +163,13 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=0.0002)
-    parser.add_argument("--step-size", type=int, default=6)
     parser.add_argument("--noise-dim", type=int, default=128)
+    parser.add_argument("--cpu-threads", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--data-dir", type=str, default="./data")
-    parser.add_argument("--output-dir", type=str, default="./checkpoints")
-    parser.add_argument("--save-every", type=int, default=5)
-    args = parser.parse_args()
-    train(args)
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./checkpoints/airplane_ship_gan",
+    )
+    parser.add_argument("--save-every", type=int, default=10)
+    train(parser.parse_args())
