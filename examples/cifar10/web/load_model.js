@@ -13,13 +13,14 @@ function parseHeader(dataView) {
   const noiseDim = dataView.getUint16(9, true);
   const numClasses = dataView.getUint8(11);
   const totalParams = dataView.getUint32(12, true);
+  const architectureId = dataView.getUint8(24);
   let minVal = 0;
   let scale = 1;
   if (mode === 1) {
     minVal = dataView.getFloat32(16, true);
     scale = dataView.getFloat32(20, true);
   }
-  return { mode, noiseDim, numClasses, totalParams, minVal, scale };
+  return { mode, noiseDim, numClasses, totalParams, minVal, scale, architectureId };
 }
 
 function extractWeights(buffer, header) {

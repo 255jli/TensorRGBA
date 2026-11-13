@@ -39,22 +39,14 @@
   </style>
 </head>
 <body>
-  <h1>TensorRGBA Animals</h1>
-  <p>Black-and-white CIFAR-10 generator stored inside a PNG</p>
+  <h1>TensorRGBA CIFAR-10</h1>
+  <p id="modelDescription">Load a PNG to see the model type</p>
 
   <div class="controls">
     <input type="file" id="modelFile" accept="image/png">
-    <select id="animalSelect">
+    <select id="classSelect">
       <option value="0">Airplane</option>
-      <option value="1">Automobile</option>
-      <option value="2">Bird</option>
-      <option value="3">Cat</option>
-      <option value="4">Deer</option>
-      <option value="5">Dog</option>
-      <option value="6">Frog</option>
-      <option value="7">Horse</option>
-      <option value="8">Ship</option>
-      <option value="9">Truck</option>
+      <option value="1">Ship</option>
     </select>
     <button id="generateBtn" disabled>Generate</button>
   </div>
@@ -73,8 +65,8 @@
     const statusEl = document.getElementById("status");
     const generateBtn = document.getElementById("generateBtn");
     const canvas = document.getElementById("output");
-    const animalSelect = document.getElementById("animalSelect");
-    const classNames = [
+    const classSelect = document.getElementById("classSelect");
+    const cifarClassNames = [
       "Airplane", "Automobile", "Bird", "Cat", "Deer",
       "Dog", "Frog", "Horse", "Ship", "Truck",
     ];
@@ -88,21 +80,38 @@
         const { header, weights } = await loadModelFromPNG(file);
         noiseDim = header.noiseDim;
         numClasses = header.numClasses || 10;
-        animalSelect.replaceChildren();
-        for (let index = 0; index < numClasses; index++) {
-          let name = classNames[index] || `Class ${index}`;
-          if (numClasses === 2) {
-            name = index === 0 ? "Cat" : "Dog";
-          }
+        let modelClassNames;
+        if (header.architectureId === 1) {
+          modelClassNames = ["Airplane", "Ship"];
+        } else if (numClasses === 2) {
+          modelClassNames = ["Cat", "Dog"];
+        } else {
+          modelClassNames = cifarClassNames.slice(0, numClasses);
+        }
+        classSelect.replaceChildren();
+        for (let index = 0; index < modelClassNames.length; index++) {
           const option = document.createElement("option");
           option.value = index;
-          option.textContent = name;
-          animalSelect.appendChild(option);
+          option.textContent = modelClassNames[index];
+          classSelect.appendChild(option);
         }
-        generator = createGenerator(weights, noiseDim, numClasses);
+        generator = createGenerator(
+          weights,
+          noiseDim,
+          numClasses,
+          header.architectureId,
+        );
         generateBtn.disabled = false;
         const modeName = header.mode === 0 ? "float32" : "int8";
-        statusEl.textContent = `Model loaded (${modeName}) · ${header.totalParams.toLocaleString()} params`;
+        const architectureName = header.architectureId === 1
+          ? "conditional GAN"
+          : "legacy MLP";
+        const outputType = header.architectureId === 1
+          ? "RGB"
+          : "grayscale";
+        document.getElementById("modelDescription").textContent =
+          `${architectureName} · ${outputType}`;
+        statusEl.textContent = `Model loaded (${modeName}) · ${header.totalParams.toLocaleString()} values`;
       } catch (err) {
         statusEl.textContent = err.message;
         statusEl.classList.add("error");
@@ -113,13 +122,13 @@
 
     generateBtn.addEventListener("click", () => {
       if (!generator) return;
-      const label = parseInt(animalSelect.value, 10);
+      const label = parseInt(classSelect.value, 10);
       const noise = new Float32Array(noiseDim);
       for (let i = 0; i < noiseDim; i++) {
         noise[i] = Math.random() * 2 - 1;
       }
-      const pixels = generateAnimal(generator, label, noise);
-      drawAnimal(canvas, pixels);
+      const pixels = generateCifarImage(generator, label, noise);
+      drawCifarImage(canvas, pixels);
     });
   </script>
 </body>
