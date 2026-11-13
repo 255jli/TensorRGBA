@@ -17,11 +17,21 @@ Reasons for keeping MLP as the base example:
 - Easy to understand and modify
 - Still produces recognizable digits after proper training
 
-## Future convolutional upgrade
+## CIFAR-10 airplane and ship generator
 
-A DCGAN-style or PixelShuffle generator can be added later as a separate example.  
-It will require a small convolution / transpose-convolution implementation on the JavaScript side.  
-Until that is ready, the MLP remains the reference implementation.
+Conditional DCGAN:
+
+```
+noise (128) + one-hot (2) → 2048 → 128×4×4 → 64×8×8 → 32×16×16 → RGB 32×32
+```
+
+The discriminator is used only during training. The PNG stores the generator
+weights and BatchNorm statistics; JavaScript performs its forward pass directly.
+
+## Future higher-resolution upgrade
+
+Higher resolutions can be added as a separate example with more upsampling
+layers and matching JavaScript inference.
 
 ## Format stability
 
