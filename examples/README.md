@@ -1,11 +1,12 @@
 # Examples
 
-Additional models using the TensorRGBA format.
+Models using the TensorRGBA format.
 
 | Example | Description | Status |
 |---------|-------------|--------|
-| `mnist/` | Handwritten digit generator with sample float32 and int8 PNG models | Ready |
-| `cifar10/` | Conditional RGB GAN for CIFAR-10 airplanes and ships | Train to export |
+| `mnist/` | Handwritten digit generator | Ready |
+| `cifar10/` | Conditional RGB GAN (airplane / ship) | Ready |
+| `classifier/` | MNIST digit classifier (draw → predict) | Ready |
 
 Each example is self-contained:
 

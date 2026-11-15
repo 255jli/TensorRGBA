@@ -18,68 +18,62 @@ You load the image in the browser with a pure JavaScript PNG decoder and run inf
 |---------|-------------|----------|
 | Digits | Handwritten digit generator (MNIST) | `examples/mnist/` |
 | CIFAR-10 | Conditional RGB generator for airplanes and ships | `examples/cifar10/` |
+| Classifier | MNIST digit classifier — draw a digit and predict | `examples/classifier/` |
 
 ## Project structure
 
 ```
 examples/
-  mnist/                - handwritten digit generator and sample model PNGs
-  cifar10/              - conditional airplane/ship RGB GAN
+  mnist/                - digit generator
+  cifar10/              - airplane / ship RGB GAN
+  classifier/           - digit classifier
 docs/
-  integration.md       - how to pack your own model
+  integration.md        - how to pack your own model
   architecture.md
 requirements.txt
 ```
 
-## Quick start (digits)
+## Quick start
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
 
+### Digit generator
+
+```bash
 cd examples/mnist/train
 python train.py
 python export_float32.py --checkpoint checkpoints/generator_final.pt --output ../model_float32.png
-python export_int8.py --checkpoint checkpoints/generator_final.pt --output ../model_int8.png
 ```
 
-Open `examples/mnist/web/index.html` and load one of the model PNGs from
-`examples/mnist/`.
+Open `examples/mnist/web/index.html`.
 
-## CIFAR-10 airplane and ship GAN
+### Classifier
+
+```bash
+cd examples/classifier/train
+python train.py
+python export_float32.py --checkpoint checkpoints/classifier_final.pt --output ../classifier_float32.png
+```
+
+Open `examples/classifier/web/index.html`, load the PNG, draw a digit, and classify.
+
+### CIFAR-10 airplane / ship
 
 ```bash
 cd examples/cifar10/train
 python train.py
 python export_float32.py --checkpoint checkpoints/airplane_ship_gan/airplane_ship_gan_final.pt --output ../cifar10_float32.png
-python export_int8.py --checkpoint checkpoints/airplane_ship_gan/airplane_ship_gan_final.pt --output ../cifar10_int8.png
 ```
 
-The generated PNGs are stored in `examples/cifar10/` and can be opened in the browser demo from `examples/cifar10/web/index.html`.
+Open `examples/cifar10/web/index.html`.
 
-## Download generated model PNGs
+## Ready model files
 
-The project includes ready-to-open model files in the example folders:
-
-- `examples/mnist/model_float32.png`
-- `examples/mnist/model_int8.png`
-- `examples/cifar10/cifar10_float32.png`
-- `examples/cifar10/cifar10_int8.png`
-
-Open one of those files in the matching demo page, or serve the project locally:
-
-```bash
-cd /workspaces/TensorRGBA
-python -m http.server 8000
-```
-
-Then open:
-
-- `http://localhost:8000/examples/mnist/web/index.html`
-- `http://localhost:8000/examples/cifar10/web/index.html`
-
-The generated images are intentionally simple and may look soft; this example is meant to show PNG packing and browser inference clearly, not to produce photorealistic output.
+Some examples already contain exported PNGs so you can try the demos immediately.
 
 ## Cross-platform loading
 
@@ -88,7 +82,7 @@ It fetches the file as an ArrayBuffer and decodes the PNG with a pure-JavaScript
 
 ## Extending
 
-See `docs/integration.md` for a guide on packing your own models.
+See `docs/integration.md` for a step-by-step guide on packing your own models.
 
 ## Notes
 
