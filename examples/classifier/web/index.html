@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TensorRGBA - Digit Classifier</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+      background: #0f0f0f;
+      color: #e0e0e0;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    p { color: #aaa; margin-top: 0; }
+    .row { display: flex; gap: 24px; flex-wrap: wrap; margin: 24px 0; align-items: flex-start; }
+    .panel { background: #1a1a1a; border-radius: 8px; padding: 16px; }
+    canvas#draw {
+      background: #000;
+      border: 2px solid #333;
+      border-radius: 4px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .controls { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    button, input[type="file"] {
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button.primary { background: #3b82f6; border-color: #3b82f6; }
+    button.primary:hover { background: #2563eb; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .probs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; min-width: 260px; }
+    .prob {
+      background: #222;
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .prob .digit { font-size: 18px; font-weight: 600; }
+    .prob .bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .prob .bar > div {
+      height: 100%;
+      background: #3b82f6;
+      width: 0%;
+    }
+    .prob.active { outline: 2px solid #3b82f6; }
+    .status { margin-top: 12px; font-size: 13px; color: #888; }
+    .error { color: #f87171; }
+    .hint { font-size: 13px; color: #666; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>TensorRGBA Classifier</h1>
+  <p>MNIST digit classifier stored inside a PNG — draw a digit and run the network</p>
+
+  <div class="controls" style="margin-bottom: 8px;">
+    <input type="file" id="modelFile" accept="image/png">
+  </div>
+  <div class="status" id="status">Load a model PNG to start</div>
+
+  <div class="row">
+    <div class="panel">
+      <canvas id="draw" width="280" height="280"></canvas>
+      <div class="controls">
+        <button id="clearBtn">Clear</button>
+        <button id="classifyBtn" class="primary" disabled>Classify</button>
+      </div>
+      <div class="hint">Draw a digit with the mouse or finger</div>
+    </div>
+    <div class="panel">
+      <div class="probs" id="probs"></div>
+    </div>
+  </div>
+
+  <script src="png_decoder.js"></script>
+  <script src="load_model.js"></script>
+  <script src="inference.js"></script>
+  <script>
+    let classifier = null;
+    const canvas = document.getElementById("draw");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+    const classifyBtn = document.getElementById("classifyBtn");
+    const probsEl = document.getElementById("probs");
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 18;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    let drawing = false;
+
+    function pos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
+    }
+
+    function start(e) {
+      e.preventDefault();
+      drawing = true;
+      const p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
+    function move(e) {
+      e.preventDefault();
+      if (!drawing) return;
+      const p = pos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    function end() {
+      drawing = false;
+    }
+
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    canvas.addEventListener("mouseup", end);
+    canvas.addEventListener("mouseleave", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end);
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      resetProbs();
+    });
+
+    function resetProbs() {
+      probsEl.innerHTML = "";
+      for (let d = 0; d < 10; d++) {
+        const div = document.createElement("div");
+        div.className = "prob";
+        div.id = "prob-" + d;
+        div.innerHTML = `<div class="digit">${d}</div><div class="bar"><div></div></div><div class="pct">—</div>`;
+        probsEl.appendChild(div);
+      }
+    }
+    resetProbs();
+
+    function getPixels() {
+      const tmp = document.createElement("canvas");
+      tmp.width = 28;
+      tmp.height = 28;
+      const tctx = tmp.getContext("2d");
+      tctx.fillStyle = "#000";
+      tctx.fillRect(0, 0, 28, 28);
+      tctx.drawImage(canvas, 0, 0, 28, 28);
+      const data = tctx.getImageData(0, 0, 28, 28).data;
+      const pixels = new Float32Array(784);
+      for (let i = 0; i < 784; i++) {
+        pixels[i] = data[i * 4] / 255;
+      }
+      return pixels;
+    }
+
+    document.getElementById("modelFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      statusEl.textContent = "Loading model...";
+      statusEl.classList.remove("error");
+      try {
+        const { header, weights } = await loadModelFromPNG(file);
+        classifier = createClassifier(weights);
+        classifyBtn.disabled = false;
+        const modeName = header.mode === 0 ? "float32" : "int8";
+        statusEl.textContent = `Model loaded (${modeName}) · ${header.totalParams.toLocaleString()} params`;
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.classList.add("error");
+        classifyBtn.disabled = true;
+        classifier = null;
+      }
+    });
+
+    classifyBtn.addEventListener("click", () => {
+      if (!classifier) return;
+      const pixels = getPixels();
+      const probs = classify(classifier, pixels);
+      let best = 0;
+      for (let i = 1; i < 10; i++) {
+        if (probs[i] > probs[best]) best = i;
+      }
+      for (let d = 0; d < 10; d++) {
+        const el = document.getElementById("prob-" + d);
+        const pct = Math.round(probs[d] * 100);
+        el.querySelector(".bar > div").style.width = pct + "%";
+        el.querySelector(".pct").textContent = pct + "%";
+        el.classList.toggle("active", d === best);
+      }
+    });
+  </script>
+</body>
+</html>
