@@ -219,7 +219,13 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-/examples/mnist/train/data/
+/examples/mnist/train/data/  # /MNIST/raw
 /examples/mnist/train/checkpoints/
 /examples/cifar10/train/data/
 /examples/cifar10/train/checkpoints/
+/examples/classifier/train/data/  # /MNIST/raw
+/examples/classifier/train/checkpoints/
+
+*.pt
+*.gz
+*-ubyte*
