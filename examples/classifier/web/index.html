@@ -62,16 +62,18 @@
     .status { margin-top: 12px; font-size: 13px; color: #888; }
     .error { color: #f87171; }
     .hint { font-size: 13px; color: #666; margin-top: 8px; }
+    .back { color: #3b82f6; font-size: 13px; text-decoration: none; }
   </style>
 </head>
 <body>
+  <a class="back" href="../../../">← All demos</a>
   <h1>TensorRGBA Classifier</h1>
   <p>MNIST digit classifier stored inside a PNG — draw a digit and run the network</p>
 
   <div class="controls" style="margin-bottom: 8px;">
     <input type="file" id="modelFile" accept="image/png">
   </div>
-  <div class="status" id="status">Load a model PNG to start</div>
+  <div class="status" id="status">Loading default model...</div>
 
   <div class="row">
     <div class="panel">
@@ -179,13 +181,11 @@
       return pixels;
     }
 
-    document.getElementById("modelFile").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    async function applyModel(source) {
       statusEl.textContent = "Loading model...";
       statusEl.classList.remove("error");
       try {
-        const { header, weights } = await loadModelFromPNG(file);
+        const { header, weights } = await loadModelFromPNG(source);
         classifier = createClassifier(weights);
         classifyBtn.disabled = false;
         const modeName = header.mode === 0 ? "float32" : "int8";
@@ -196,6 +196,12 @@
         classifyBtn.disabled = true;
         classifier = null;
       }
+    }
+
+    document.getElementById("modelFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await applyModel(file);
     });
 
     classifyBtn.addEventListener("click", () => {
@@ -214,6 +220,8 @@
         el.classList.toggle("active", d === best);
       }
     });
+
+    applyModel("../classifier_int8.png");
   </script>
 </body>
 </html>

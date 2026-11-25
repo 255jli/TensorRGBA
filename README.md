@@ -5,6 +5,8 @@ Neural network weights stored inside a PNG image.
 The trained model lives completely inside one lossless PNG file.
 You load the image in the browser with a pure JavaScript PNG decoder and run inference with pure JavaScript. No backend. No heavy libraries.
 
+**[Live demos](https://255jli.github.io/TensorRGBA/)** — models load automatically, no file picker required.
+
 <p>
   <img src="docs/images/mnist-out.png" alt="Digit generated from weights stored in a PNG" width="210">
   <img src="docs/images/classifier.png" alt="Drawn digit classified by a model loaded from a PNG" width="210">
@@ -23,11 +25,11 @@ The last image is not a texture. It is the weight file. Change it to JPEG and th
 
 ## Examples
 
-| Example | Description | Location |
-|---------|-------------|----------|
-| Digits | Handwritten digit generator (MNIST) | `examples/mnist/` |
-| CIFAR-10 | Conditional RGB generator for airplanes and ships | `examples/cifar10/` |
-| Classifier | MNIST digit classifier — draw a digit and predict | `examples/classifier/` |
+| Example | Description | Location | Live |
+|---------|-------------|----------|------|
+| Digits | Handwritten digit generator (MNIST) | `examples/mnist/` | [demo](https://255jli.github.io/TensorRGBA/examples/mnist/web/) |
+| CIFAR-10 | Conditional RGB generator for airplanes and ships | `examples/cifar10/` | [demo](https://255jli.github.io/TensorRGBA/examples/cifar10/web/) |
+| Classifier | MNIST digit classifier — draw a digit and predict | `examples/classifier/` | [demo](https://255jli.github.io/TensorRGBA/examples/classifier/web/) |
 
 ## Project structure
 
@@ -40,6 +42,7 @@ docs/
   images/               - README screenshots
   integration.md        - how to pack your own model
   architecture.md
+index.html              - live demo hub (GitHub Pages)
 requirements.txt
 ```
 
@@ -69,7 +72,7 @@ python train.py
 python export_float32.py --checkpoint checkpoints/classifier_final.pt --output ../classifier_float32.png
 ```
 
-Open `examples/classifier/web/index.html`, load the PNG, draw a digit, and classify.
+Open `examples/classifier/web/index.html`, draw a digit, and classify.
 
 ### CIFAR-10 airplane / ship
 
@@ -83,7 +86,7 @@ Open `examples/cifar10/web/index.html`.
 
 ## Ready model files
 
-Some examples already contain exported PNGs so you can try the demos immediately.
+Examples include exported PNG models. Demos auto-load the int8 variant when opened from the web or GitHub Pages.
 
 ## Cross-platform loading
 

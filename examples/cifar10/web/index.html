@@ -26,6 +26,7 @@
     }
     button { cursor: pointer; background: #3b82f6; border-color: #3b82f6; }
     button:hover { background: #2563eb; }
+    button:disabled { opacity: 0.5; cursor: default; }
     canvas {
       image-rendering: pixelated;
       width: 256px;
@@ -36,11 +37,13 @@
     }
     .status { margin-top: 12px; font-size: 13px; color: #888; }
     .error { color: #f87171; }
+    .back { color: #3b82f6; font-size: 13px; text-decoration: none; }
   </style>
 </head>
 <body>
+  <a class="back" href="../../../">← All demos</a>
   <h1>TensorRGBA CIFAR-10</h1>
-  <p id="modelDescription">Load a PNG to see the model type</p>
+  <p id="modelDescription">Loading default model...</p>
 
   <div class="controls">
     <input type="file" id="modelFile" accept="image/png">
@@ -52,7 +55,7 @@
   </div>
 
   <canvas id="output" width="32" height="32"></canvas>
-  <div class="status" id="status">Load a model PNG to start</div>
+  <div class="status" id="status">Loading default model...</div>
 
   <script src="png_decoder.js"></script>
   <script src="load_model.js"></script>
@@ -71,13 +74,11 @@
       "Dog", "Frog", "Horse", "Ship", "Truck",
     ];
 
-    document.getElementById("modelFile").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    async function applyModel(source) {
       statusEl.textContent = "Loading model...";
       statusEl.classList.remove("error");
       try {
-        const { header, weights } = await loadModelFromPNG(file);
+        const { header, weights } = await loadModelFromPNG(source);
         noiseDim = header.noiseDim;
         numClasses = header.numClasses || 10;
         let modelClassNames;
@@ -118,6 +119,12 @@
         generateBtn.disabled = true;
         generator = null;
       }
+    }
+
+    document.getElementById("modelFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await applyModel(file);
     });
 
     generateBtn.addEventListener("click", () => {
@@ -130,6 +137,8 @@
       const pixels = generateCifarImage(generator, label, noise);
       drawCifarImage(canvas, pixels);
     });
+
+    applyModel("../cifar10_int8.png");
   </script>
 </body>
 </html>

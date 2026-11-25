@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TensorRGBA Live Demos</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 640px;
+      margin: 48px auto;
+      padding: 0 16px;
+      background: #0f0f0f;
+      color: #e0e0e0;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.35rem; }
+    p { color: #aaa; line-height: 1.5; }
+    a.card {
+      display: block;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 12px 0;
+      color: #eee;
+      text-decoration: none;
+    }
+    a.card:hover { border-color: #3b82f6; }
+    a.card strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+    a.card span { color: #888; font-size: 0.9rem; }
+    .repo { margin-top: 28px; font-size: 0.9rem; }
+    .repo a { color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>TensorRGBA</h1>
+  <p>Neural network weights stored inside a PNG. Open a demo — the model loads automatically.</p>
+
+  <a class="card" href="examples/mnist/web/">
+    <strong>Digit generator</strong>
+    <span>MNIST · noise + label → handwritten digit</span>
+  </a>
+  <a class="card" href="examples/classifier/web/">
+    <strong>Digit classifier</strong>
+    <span>Draw a digit · model predicts the class</span>
+  </a>
+  <a class="card" href="examples/cifar10/web/">
+    <strong>Airplane / ship generator</strong>
+    <span>CIFAR-10 conditional GAN · RGB 32×32</span>
+  </a>
+
+  <p class="repo">Source: <a href="https://github.com/255jli/TensorRGBA">github.com/255jli/TensorRGBA</a></p>
+</body>
+</html>

@@ -26,6 +26,7 @@
     }
     button { cursor: pointer; background: #3b82f6; border-color: #3b82f6; }
     button:hover { background: #2563eb; }
+    button:disabled { opacity: 0.5; cursor: default; }
     canvas {
       image-rendering: pixelated;
       width: 224px;
@@ -36,9 +37,11 @@
     }
     .status { margin-top: 12px; font-size: 13px; color: #888; }
     .error { color: #f87171; }
+    .back { color: #3b82f6; font-size: 13px; text-decoration: none; }
   </style>
 </head>
 <body>
+  <a class="back" href="../../../">← All demos</a>
   <h1>TensorRGBA</h1>
   <p>Neural network weights stored inside a PNG image</p>
 
@@ -60,7 +63,7 @@
   </div>
 
   <canvas id="output" width="28" height="28"></canvas>
-  <div class="status" id="status">Load a model PNG to start</div>
+  <div class="status" id="status">Loading default model...</div>
 
   <script src="png_decoder.js"></script>
   <script src="load_model.js"></script>
@@ -73,13 +76,11 @@
     const generateBtn = document.getElementById("generateBtn");
     const canvas = document.getElementById("output");
 
-    document.getElementById("modelFile").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    async function applyModel(source) {
       statusEl.textContent = "Loading model...";
       statusEl.classList.remove("error");
       try {
-        const { header, weights } = await loadModelFromPNG(file);
+        const { header, weights } = await loadModelFromPNG(source);
         noiseDim = header.noiseDim;
         generator = createGenerator(weights, noiseDim);
         generateBtn.disabled = false;
@@ -91,6 +92,12 @@
         generateBtn.disabled = true;
         generator = null;
       }
+    }
+
+    document.getElementById("modelFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await applyModel(file);
     });
 
     generateBtn.addEventListener("click", () => {
@@ -103,6 +110,8 @@
       const pixels = generateDigit(generator, label, noise);
       drawDigit(canvas, pixels);
     });
+
+    applyModel("../model_int8.png");
   </script>
 </body>
 </html>
